@@ -167,7 +167,7 @@ MODEL_NAME=mistral
 
 Frontend:
 ```bash
-cd frontend
+cd frontend --
 npm run build
 ```
 
