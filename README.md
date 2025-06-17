@@ -1,6 +1,6 @@
 # ai-docs-app
 # AI-Powered Automated Documentation App
-
+as
 A full-stack web application that allows users to record voice input, transcribe it to text, generate AI summaries using Ollama, and export the results as PDF.
 
 ## Features
