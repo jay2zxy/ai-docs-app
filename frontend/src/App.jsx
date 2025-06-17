@@ -7,6 +7,7 @@ const API_BASE_URL = 'http://localhost:3001';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
+  const [interimText, setInterimText] = useState('');
   const [transcribedText, setTranscribedText] = useState('');
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +35,7 @@ function App() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognitionInstance = new SpeechRecognition();
-      
+
       recognitionInstance.continuous = true;
       recognitionInstance.interimResults = true;
       recognitionInstance.lang = 'en-US';
@@ -52,7 +53,11 @@ function App() {
           }
         }
 
-        setTranscribedText(prev => prev + finalTranscript);
+        if (finalTranscript) {
+          setTranscribedText(prev => prev + finalTranscript);
+        }
+
+        setInterimText(interimTranscript);
       };
 
       recognitionInstance.onerror = (event) => {
@@ -195,11 +200,10 @@ function App() {
           <div className="flex gap-4 mb-4">
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              className={`px-6 py-3 rounded-lg font-medium ${
-                isRecording
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-              } transition-colors`}
+              className={`px-6 py-3 rounded-lg font-medium ${isRecording
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                } transition-colors`}
               disabled={!recognition}
             >
               {isRecording ? '🛑 Stop Recording' : '🎤 Start Recording'}
@@ -214,7 +218,7 @@ function App() {
               </button>
             )}
           </div>
-          
+
           {isRecording && (
             <div className="flex items-center gap-2 text-red-600">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
@@ -222,6 +226,13 @@ function App() {
             </div>
           )}
         </div>
+
+        {isRecording && interimText && (
+          <div className="bg-gray-100 p-4 rounded-lg text-gray-700 mb-4">
+            <h3 className="font-medium mb-2">🗣️ Currently Speaking...</h3>
+            <p className="italic">{interimText}</p>
+          </div>
+        )}
 
         {/* Transcribed Text */}
         {transcribedText && (

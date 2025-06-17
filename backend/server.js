@@ -28,16 +28,15 @@ app.get('/api/ollama-status', async (req, res) => {
     const response = await axios.get(`${OLLAMA_URL}/api/tags`);
     const models = response.data.models || [];
     const hasModel = models.some(model => model.name.includes(MODEL_NAME));
-    
-    res.json({ 
-      connected: true, 
+    res.json({
+      connected: true,
       models: models.map(m => m.name),
       hasRequiredModel: hasModel,
       requiredModel: MODEL_NAME
     });
   } catch (error) {
-    res.json({ 
-      connected: false, 
+    res.json({
+      connected: false,
       error: error.message,
       requiredModel: MODEL_NAME
     });
@@ -48,7 +47,7 @@ app.get('/api/ollama-status', async (req, res) => {
 app.post('/api/summarize', async (req, res) => {
   try {
     const { text } = req.body;
-    
+
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ error: 'Text is required for summarization' });
     }
@@ -66,24 +65,24 @@ app.post('/api/summarize', async (req, res) => {
     });
 
     const summary = ollamaResponse.data.response;
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       summary: summary.trim(),
       originalText: text
     });
 
   } catch (error) {
     console.error('Summarization error:', error.message);
-    
+
     if (error.code === 'ECONNREFUSED') {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Cannot connect to Ollama. Please ensure Ollama is running locally.',
         details: `Trying to connect to: ${OLLAMA_URL}`
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'Failed to generate summary',
       details: error.message
     });
