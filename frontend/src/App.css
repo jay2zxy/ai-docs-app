@@ -2,9 +2,13 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-/* Custom styles */
+/* Custom animations */
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
 }
 
 @keyframes pulse {
@@ -13,6 +17,38 @@
   }
   50% {
     opacity: .5;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8,0,1,1);
+  }
+  50% {
+    transform: none;
+    animation-timing-function: cubic-bezier(0,0,0.2,1);
+  }
+}
+
+/* Streaming text animation */
+.streaming-text {
+  position: relative;
+}
+
+.streaming-text::after {
+  content: '|';
+  color: #3b82f6;
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
   }
 }
 
@@ -40,13 +76,18 @@ button {
   transition: all 0.2s ease-in-out;
 }
 
-button:hover {
+button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-button:active {
+button:active:not(:disabled) {
   transform: translateY(0);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Card hover effects */
@@ -56,4 +97,20 @@ button:active {
 
 .bg-white:hover {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Streaming indicator styles */
+.streaming-indicator {
+  background: linear-gradient(90deg, #e5e7eb, #3b82f6, #e5e7eb);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }

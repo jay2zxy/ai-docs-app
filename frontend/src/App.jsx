@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
@@ -11,6 +12,8 @@ function App() {
   const [transcribedText, setTranscribedText] = useState('');
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [error, setError] = useState('');
   const [ollamaStatus, setOllamaStatus] = useState(null);
   const [recognition, setRecognition] = useState(null);
@@ -93,6 +96,85 @@ function App() {
   };
 
   const generateSummary = async () => {
+    if (!transcribedText.trim()) {
+      setError('Please record some text first');
+      return;
+    }
+
+    setIsLoading(true);
+    setIsStreaming(true);
+    setError('');
+    setSummary('');
+    setStreamingText('');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/summarize-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: transcribedText }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          setIsStreaming(false);
+          setIsLoading(false);
+          break;
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              switch (data.type) {
+                case 'start':
+                  setStreamingText('');
+                  break;
+                case 'chunk':
+                  setStreamingText(data.fullContent || '');
+                  break;
+                case 'complete':
+                  setSummary(data.content);
+                  setStreamingText('');
+                  setIsStreaming(false);
+                  setIsLoading(false);
+                  break;
+                case 'error':
+                  setError(data.error);
+                  setIsStreaming(false);
+                  setIsLoading(false);
+                  break;
+              }
+            } catch (parseError) {
+              console.log('Failed to parse SSE data:', line);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Streaming error:', error);
+      setError('Failed to generate summary: ' + error.message);
+      setIsStreaming(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Non-streaming fallback function
+  const generateSummaryFallback = async () => {
     if (!transcribedText.trim()) {
       setError('Please record some text first');
       return;
@@ -209,13 +291,24 @@ function App() {
               {isRecording ? '🛑 Stop Recording' : '🎤 Start Recording'}
             </button>
             {transcribedText && (
-              <button
-                onClick={generateSummary}
-                disabled={isLoading || !ollamaStatus?.connected}
-                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium disabled:bg-gray-400 transition-colors"
-              >
-                {isLoading ? 'Generating...' : '✨ Generate Summary'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={generateSummary}
+                  disabled={isLoading || isStreaming || !ollamaStatus?.connected}
+                  className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium disabled:bg-gray-400 transition-colors"
+                >
+                  {isLoading || isStreaming ? '✨ Generating...' : '✨ Generate Summary (Stream)'}
+                </button>
+
+                {/* <button
+                  onClick={generateSummaryFallback}
+                  disabled={isLoading || isStreaming || !ollamaStatus?.connected}
+                  className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium disabled:bg-gray-400 transition-colors text-sm"
+                >
+                  Standard
+                </button> */}
+
+              </div>
             )}
           </div>
 
@@ -248,21 +341,47 @@ function App() {
         )}
 
         {/* Summary */}
-        {summary && (
+        {(summary || streamingText || isStreaming) && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">AI-Generated Summary</h2>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-xl font-semibold">AI-Generated Summary</h2>
+              {isStreaming && (
+                <div className="flex items-center gap-2 text-blue-600">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm">Streaming...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Show streaming text or final summary */}
             <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              className="w-full h-40 p-3 border border-gray-300 rounded-lg resize-vertical focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={isStreaming ? streamingText : summary}
+              onChange={(e) => !isStreaming && setSummary(e.target.value)}
+              className={`w-full h-40 p-3 border border-gray-300 rounded-lg resize-vertical focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isStreaming ? 'bg-gray-50' : ''}`}
               placeholder="AI-generated summary will appear here..."
+              readOnly={isStreaming}
             />
-            <button
-              onClick={downloadPDF}
-              className="mt-4 px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
-            >
-              📄 Download PDF
-            </button>
+
+            {/* Streaming indicator */}
+            {isStreaming && (
+              <div className="mt-2 text-sm text-gray-600 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span>AI is generating your summary...</span>
+              </div>
+            )}
+
+            {summary && !isStreaming && (
+              <button
+                onClick={downloadPDF}
+                className="mt-4 px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
+              >
+                📄 Download PDF
+              </button>
+            )}
           </div>
         )}
 
